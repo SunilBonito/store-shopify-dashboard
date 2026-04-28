@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Store · Shopify BI</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1c1a18;--ink2:#3d3a35;--ink3:#7a766e;
+  --paper:#faf8f4;--paper2:#f2ede4;--border:#d8d0c0;
+  --rust:#c45c2e;--rust2:#e8845a;--teal:#2a7a6e;--teal2:#4aada0;
+  --gold:#b8902a;--gold2:#d4a843;--purple:#7a5a8a;--sage:#5a8a6a;
+  --nav-h:50px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--paper);color:var(--ink);}
+
+.nav{background:var(--ink);display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:var(--nav-h);position:sticky;top:0;z-index:200;}
+.logo{font-family:'Playfair Display',serif;font-size:16px;color:#fff;}
+.logo span{color:var(--gold2);}
+.nav-r{display:flex;align-items:center;gap:8px;}
+.nav-tags{display:flex;gap:10px;}
+.nav-tag{font-family:'IBM Plex Mono',monospace;font-size:11px;color:#888;}
+.nav-tag b{color:#fff;}
+.loc-grp{display:flex;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden;border:1px solid #444;}
+.loc-btn{padding:4px 9px;font-size:11px;cursor:pointer;color:#888;background:none;border:none;font-family:'IBM Plex Sans',sans-serif;transition:all .15s;}
+.loc-btn.on{background:#fff;color:var(--ink);font-weight:600;}
+.reset-btn{background:none;border:1px solid #555;color:#ccc;padding:5px 12px;border-radius:3px;cursor:pointer;font-size:11px;font-family:'IBM Plex Sans',sans-serif;}
+.reset-btn:hover{background:#fff;color:var(--ink);}
+.ham{display:none;flex-direction:column;gap:4px;cursor:pointer;padding:6px;border:none;background:none;}
+.ham span{display:block;width:20px;height:2px;background:#fff;border-radius:1px;transition:all .25s;}
+
+.layout{display:flex;}
+.sidebar{width:192px;flex-shrink:0;background:var(--ink);overflow-y:auto;max-height:calc(100vh - var(--nav-h));position:sticky;top:var(--nav-h);align-self:flex-start;}
+.sb-sec{padding:11px 13px 8px;}
+.sb-sec+.sb-sec{border-top:1px solid rgba(255,255,255,.07);}
+.sb-ttl{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#555;margin-bottom:6px;}
+.sb-it{display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:3px;cursor:pointer;color:#a09888;font-size:11.5px;transition:all .15s;user-select:none;}
+.sb-it:hover{background:rgba(255,255,255,.07);color:#fff;}
+.sb-it.on{background:rgba(196,92,46,.22);color:var(--rust2);}
+.sb-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;}
+.sb-n{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;opacity:.55;}
+.sb-it.on .sb-n{opacity:1;}
+.mat-sb-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px;}
+.mat-chip{display:flex;align-items:center;gap:3px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:3px;padding:3px 7px;cursor:pointer;color:#a09888;font-size:10.5px;transition:all .15s;user-select:none;}
+.mat-chip:hover{background:rgba(255,255,255,.12);color:#fff;}
+.mat-chip.on{background:rgba(196,92,46,.25);border-color:var(--rust2);color:var(--rust2);}
+.mat-chip-n{font-family:'IBM Plex Mono',monospace;font-size:9px;opacity:.6;margin-left:2px;}
+
+.main{flex:1;padding:14px;overflow:hidden;min-width:0;}
+
+.active-filters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+.active-filters:empty{display:none;}
+.af-pill{display:flex;align-items:center;gap:5px;background:var(--rust);color:#fff;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:500;}
+.af-x{cursor:pointer;opacity:.7;margin-left:2px;font-size:13px;line-height:1;}
+.af-x:hover{opacity:1;}
+
+.kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;margin-bottom:12px;}
+.kpi{background:#fff;border:1px solid var(--border);border-radius:6px;padding:11px 13px 10px;position:relative;overflow:hidden;}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.kpi:nth-child(1)::before{background:var(--rust);}
+.kpi:nth-child(2)::before{background:var(--teal);}
+.kpi:nth-child(3)::before{background:var(--gold);}
+.kpi:nth-child(4)::before{background:var(--rust2);}
+.kpi:nth-child(5)::before{background:var(--teal2);}
+.kpi:nth-child(6)::before{background:var(--gold2);}
+.kpi-v{font-family:'Playfair Display',serif;font-size:22px;line-height:1;margin-bottom:3px;}
+.kpi-l{font-size:10px;color:var(--ink3);letter-spacing:.05em;text-transform:uppercase;}
+
+.theme-strip{background:#fff;border:1px solid var(--border);border-radius:6px;padding:11px 14px;margin-bottom:12px;}
+.ts-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;gap:6px;flex-wrap:wrap;}
+.ts-title{font-family:'Playfair Display',serif;font-size:13px;}
+.ts-note{font-size:11px;color:var(--ink3);}
+.ts-chips{display:flex;gap:6px;flex-wrap:wrap;}
+.tc{display:flex;align-items:center;gap:6px;background:var(--paper2);border:1px solid var(--border);border-radius:20px;padding:5px 11px 5px 8px;cursor:pointer;transition:all .15s;user-select:none;}
+.tc.on{color:#fff;border-color:transparent;}
+.tc-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.tc.on .tc-dot{background:rgba(255,255,255,.6)!important;}
+.tc-nm{font-size:11px;font-weight:500;}
+.tc-ct{font-family:'IBM Plex Mono',monospace;font-size:10px;opacity:.7;}
+
+.card{background:#fff;border:1px solid var(--border);border-radius:6px;padding:13px 15px;}
+.ch{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:8px;flex-wrap:wrap;}
+.ct{font-family:'Playfair Display',serif;font-size:13px;}
+.cs{font-size:10px;color:var(--ink3);margin-top:2px;}
+.click-hint{font-size:10px;color:var(--rust2);margin-top:2px;}
+.leg{display:flex;gap:10px;flex-shrink:0;}
+.li{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--ink3);}
+.ld{width:7px;height:7px;border-radius:50%;}
+
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.g3{display:grid;grid-template-columns:1.1fr 1fr .9fr;gap:10px;margin-bottom:10px;}
+
+.bw{display:flex;flex-wrap:wrap;gap:5px;max-height:175px;overflow-y:auto;}
+.bc{display:flex;align-items:center;gap:4px;background:var(--paper2);border:1px solid var(--border);border-radius:20px;padding:4px 10px 4px 7px;cursor:pointer;transition:all .15s;user-select:none;}
+.bc:hover{border-color:var(--rust2);}
+.bc.on{background:var(--rust);border-color:var(--rust);color:#fff;}
+.bc-n{font-size:10px;opacity:.65;font-family:'IBM Plex Mono',monospace;}
+.bc-nm{font-size:11px;font-weight:500;}
+
+.ml{display:flex;flex-direction:column;gap:4px;margin-top:8px;}
+.mr-row{display:flex;align-items:center;gap:6px;font-size:11px;}
+.md{width:7px;height:7px;border-radius:2px;flex-shrink:0;}
+.ml-lb{flex:1;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ml-pc{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink3);}
+
+.tbl-wrap{background:#fff;border:1px solid var(--border);border-radius:6px;overflow:hidden;}
+.tbl-tb{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:1px solid var(--border);background:var(--paper);gap:8px;flex-wrap:wrap;}
+.srch{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--border);border-radius:4px;padding:5px 9px;flex:1;min-width:160px;}
+.srch input{border:none;outline:none;font-size:12px;font-family:'IBM Plex Sans',sans-serif;width:100%;color:var(--ink);}
+.ti{font-size:11px;color:var(--ink3);font-family:'IBM Plex Mono',monospace;white-space:nowrap;}
+.tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+table{width:100%;border-collapse:collapse;font-size:12px;min-width:820px;}
+thead tr{background:var(--paper2);}
+th{padding:7px 11px;text-align:left;border-bottom:2px solid var(--border);font-size:10px;letter-spacing:.07em;text-transform:uppercase;font-weight:600;color:var(--ink2);cursor:pointer;user-select:none;white-space:nowrap;}
+th:hover{color:var(--rust);}
+th .si{font-size:9px;margin-left:2px;color:var(--ink3);}
+tbody tr{border-bottom:1px solid #f0ece4;transition:background .1s;}
+tbody tr:hover{background:var(--paper);}
+td{padding:6px 11px;color:var(--ink2);}
+td.td-title{font-weight:500;color:var(--ink);max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pa{background:#e8f5f0;color:#1a6b55;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;}
+.pd{background:#f5f0e8;color:#7a5a20;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;}
+.pv{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink3);}
+.tf{display:flex;align-items:center;justify-content:space-between;padding:7px 12px;background:var(--paper);border-top:1px solid var(--border);flex-wrap:wrap;gap:6px;}
+.pg{display:flex;gap:3px;flex-wrap:wrap;}
+.pb{min-width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:3px;cursor:pointer;font-size:11px;color:var(--ink3);background:#fff;padding:0 5px;}
+.pb:hover{border-color:var(--rust);color:var(--rust);}
+.pb.on{background:var(--rust);color:#fff;border-color:var(--rust);font-weight:700;}
+.pb.off{opacity:.3;cursor:default;pointer-events:none;}
+
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:150;}
+.overlay.show{display:block;}
+.mob-bar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:160;background:var(--ink);border-top:1px solid rgba(255,255,255,.1);padding:8px 10px;gap:6px;}
+.mob-btn{flex:1;padding:8px 4px;border:1px solid rgba(255,255,255,.2);border-radius:5px;color:#ccc;background:none;font-family:'IBM Plex Sans',sans-serif;font-size:11px;cursor:pointer;text-align:center;transition:all .15s;white-space:nowrap;}
+.mob-btn.on{background:var(--rust);border-color:var(--rust);color:#fff;}
+.drawer{position:fixed;bottom:0;left:0;right:0;z-index:170;background:var(--ink);border-radius:16px 16px 0 0;max-height:76vh;overflow-y:auto;transform:translateY(100%);transition:transform .3s ease;padding-bottom:16px;display:none;}
+.drawer.open{transform:translateY(0);}
+.drw-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid rgba(255,255,255,.1);position:sticky;top:0;background:var(--ink);z-index:1;}
+.drw-title{font-family:'Playfair Display',serif;font-size:15px;color:#fff;}
+.drw-close{background:none;border:none;color:#888;font-size:22px;cursor:pointer;line-height:1;}
+.drw-body{padding:4px 0 4px;}
+.drw-sec{padding:10px 16px 4px;}
+.drw-sec-ttl{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#555;margin-bottom:8px;}
+.drw-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.dc{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:5px 11px;cursor:pointer;color:#a09888;font-size:12px;transition:all .15s;user-select:none;}
+.dc.on{background:rgba(196,92,46,.3);border-color:var(--rust2);color:var(--rust2);}
+.dc-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;}
+.dc-n{font-family:'IBM Plex Mono',monospace;font-size:10px;opacity:.6;margin-left:2px;}
+.drw-apply{margin:12px 16px 0;padding:11px;background:var(--rust);border:none;border-radius:6px;color:#fff;font-size:13px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;cursor:pointer;width:calc(100% - 32px);}
+
+@media(max-width:900px){
+  .sidebar{display:none;}.ham{display:flex;}.nav-tags{display:none;}
+  .mob-bar{display:flex;}.main{padding:10px 10px 72px;}
+  .g2,.g3{grid-template-columns:1fr;}.kpi-row{grid-template-columns:repeat(2,1fr);}
+}
+@media(max-width:480px){
+  .kpi-v{font-size:20px;}.nav{padding:0 10px;}.main{padding:8px 8px 72px;}
+  .loc-btn{padding:3px 7px;font-size:10px;}
+}
+@media(min-width:901px){
+  .drawer{display:none!important;}.mob-bar{display:none!important;}.overlay{display:none!important;}
+}
+
+/* STATUS STRIP */
+.status-strip{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+.status-card{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--border);border-radius:6px;padding:10px 16px;cursor:pointer;transition:all .15s;user-select:none;flex:1;min-width:120px;}
+.status-card:hover{border-color:var(--rust2);}
+.status-card.on{border-color:transparent;}
+.status-card.on.active-card{background:#e8f5f0;border:2px solid #2a7a6e;}
+.status-card.on.draft-card{background:#f5f0e8;border:2px solid #b8902a;}
+.status-icon{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.status-info{display:flex;flex-direction:column;}
+.status-val{font-family:'Playfair Display',serif;font-size:20px;line-height:1;color:var(--ink);}
+.status-lbl{font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-top:2px;}
+.status-pct{font-family:'IBM Plex Mono',monospace;font-size:10px;margin-left:auto;color:var(--ink3);}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="logo">Store <span>·</span> Shopify BI</div>
+  <div class="nav-r">
+    <div class="nav-tags">
+      <span class="nav-tag">SKUs <b id="navSkus">2,677</b></span>
+      <span class="nav-tag">Products <b id="navProds">1,040</b></span>
+    </div>
+    <div class="loc-grp">
+      <button class="loc-btn on" id="locBoth" onclick="setLoc('both',this)">Both</button>
+      <button class="loc-btn" id="locBLR" onclick="setLoc('blr',this)">BLR</button>
+      <button class="loc-btn" id="locMUM" onclick="setLoc('mum',this)">MUM</button>
+    </div>
+    <button class="reset-btn" onclick="resetAll()">&#8635; Reset</button>
+    <button class="ham" id="ham" onclick="openDrawer('cat')" aria-label="Filters">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</nav>
+<div class="overlay" id="overlay" onclick="closeDrawer()"></div>
+<div class="layout">
+<aside class="sidebar">
+  <div class="sb-sec"><div class="sb-ttl">Main Category</div><div id="sbMC"></div></div>
+  <div class="sb-sec"><div class="sb-ttl">Category</div><div id="sbCat"></div></div>
+  <div class="sb-sec"><div class="sb-ttl">Storage Type</div><div id="sbStor"></div></div>
+  <div class="sb-sec"><div class="sb-ttl">Material</div><div class="mat-sb-chips" id="sbMat"></div></div>
+</aside>
+<main class="main">
+  <div class="active-filters" id="activeFilters"></div>
+  <div class="status-strip" id="statusStrip">
+    <div class="status-card active-card" id="statusCardActive" onclick="statusClick('active')">
+      <div class="status-icon" style="background:#2a7a6e"></div>
+      <div class="status-info">
+        <div class="status-val" id="statusActiveVal">2,527</div>
+        <div class="status-lbl">Active SKUs</div>
+      </div>
+      <div class="status-pct" id="statusActivePct">94.4%</div>
+    </div>
+    <div class="status-card draft-card" id="statusCardDraft" onclick="statusClick('draft')">
+      <div class="status-icon" style="background:#b8902a"></div>
+      <div class="status-info">
+        <div class="status-val" id="statusDraftVal">150</div>
+        <div class="status-lbl">Draft SKUs</div>
+      </div>
+      <div class="status-pct" id="statusDraftPct">5.6%</div>
+    </div>
+  </div>
+  <div class="kpi-row">
+    <div class="kpi"><div class="kpi-v" id="kv0">2,677</div><div class="kpi-l">Total SKUs</div></div>
+    <div class="kpi"><div class="kpi-v" id="kv1">1,040</div><div class="kpi-l">Unique Products</div></div>
+    <div class="kpi"><div class="kpi-v" id="kv2">24</div><div class="kpi-l">Brands</div></div>
+    <div class="kpi"><div class="kpi-v" id="kv3">17</div><div class="kpi-l">Categories</div></div>
+    <div class="kpi"><div class="kpi-v" id="kv4">69</div><div class="kpi-l">Subcategories</div></div>
+    <div class="kpi"><div class="kpi-v" id="kv5">&#8377;27.4K</div><div class="kpi-l">Avg Selling Price</div></div>
+  </div>
+  <div class="theme-strip">
+    <div class="ts-hdr">
+      <div class="ts-title">Design Themes</div>
+      <span class="ts-note"><span id="tsActive" style="color:var(--rust)">All active</span> &nbsp;·&nbsp; tap to filter</span>
+    </div>
+    <div class="ts-chips" id="tsChips"></div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="ch"><div><div class="ct">SKU by Main Category</div><div class="cs">Variants per category</div><div class="click-hint">&#x1F4CA; Click bar to filter</div></div></div>
+      <div style="height:160px"><canvas id="cMC"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ch">
+        <div><div class="ct">Top Subcategories</div><div class="cs">SKU count vs unique products</div><div class="click-hint">&#x1F4CA; Click bar to filter</div></div>
+        <div class="leg">
+          <div class="li"><div class="ld" style="background:var(--rust)"></div>SKUs</div>
+          <div class="li"><div class="ld" style="background:var(--teal)"></div>Unique</div>
+        </div>
+      </div>
+      <div style="height:160px"><canvas id="cSC"></canvas></div>
+    </div>
+  </div>
+  <div class="g3">
+    <div class="card">
+      <div class="ch"><div><div class="ct">Price Range</div><div class="cs" id="prLbl">BLR + MUM avg</div><div class="click-hint">&#x1F4CA; Click bar to filter</div></div></div>
+      <div style="height:155px"><canvas id="cPR"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div><div class="ct">Brands</div><div class="cs" id="brandNote">Tap to filter</div></div></div>
+      <div class="bw" id="bw"></div>
+    </div>
+    <div class="card">
+      <div class="ch"><div><div class="ct">Material Mix</div><div class="cs">Top materials by SKU</div></div></div>
+      <div style="height:95px"><canvas id="cMT"></canvas></div>
+      <div class="ml" id="matLeg"></div>
+    </div>
+  </div>
+  <div class="tbl-wrap">
+    <div class="tbl-tb">
+      <div class="srch">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input id="srchIn" type="text" placeholder="Search title, brand, category, theme…" oninput="onSearch(this.value)">
+      </div>
+      <span class="ti" id="tblTi">2,677 records</span>
+    </div>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr>
+          <th onclick="srt(1)">Variant Title <span class="si" id="s1">&#x2195;</span></th>
+          <th onclick="srt(2)">Brand <span class="si" id="s2">&#x25B2;</span></th>
+          <th onclick="srt(3)">Main Cat <span class="si" id="s3">&#x2195;</span></th>
+          <th onclick="srt(4)">Category <span class="si" id="s4">&#x2195;</span></th>
+          <th onclick="srt(5)">Subcategory <span class="si" id="s5">&#x2195;</span></th>
+          <th onclick="srt(6)">Material <span class="si" id="s6">&#x2195;</span></th>
+          <th onclick="srt(11)">Storage <span class="si" id="s11">&#x2195;</span></th>
+          <th onclick="srt(8)">SP BLR <span class="si" id="s8">&#x2195;</span></th>
+          <th onclick="srt(9)">SP MUM <span class="si" id="s9">&#x2195;</span></th>
+          <th onclick="srt(7)">MRP <span class="si" id="s7">&#x2195;</span></th>
+          <th onclick="srt(10)">Status <span class="si" id="s10">&#x2195;</span></th>
+          <th>Themes</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="tf">
+      <span class="ti" id="tblFt"></span>
+      <div class="pg" id="pgRow"></div>
+    </div>
+  </div>
+</main>
+</div>
+<div class="mob-bar" id="mobBar">
+  <button class="mob-btn" id="mLocBtn" onclick="openDrawer('loc')">&#x1F4CD; Both</button>
+  <button class="mob-btn" id="mCatBtn" onclick="openDrawer('cat')">&#x1F4C2; Category</button>
+  <button class="mob-btn" id="mBrandBtn" onclick="openDrawer('brand')">&#x1F3EA; Brand</button>
+  <button class="mob-btn" onclick="resetAll()">&#x21BA; Reset</button>
+</div>
+<div class="drawer" id="drawer">
+  <div class="drw-hdr">
+    <div class="drw-title" id="drwTitle">Filters</div>
+    <button class="drw-close" onclick="closeDrawer()">&#x2715;</button>
+  </div>
+  <div class="drw-body" id="drwBody"></div>
+  <button class="drw-apply" onclick="closeDrawer()">Done</button>
+</div>
+
+<script>
+// DATA injected below — cols: [prodNo,title,brand,mainCat,cat,subcat,material,mrp,sp_blr,sp_mum,status,storage,secMat,themes[]]
+// indexes:                        0      1      2     3       4    5      6       7    8      9      10     11       12      13
+var R = %%DATA%%;
+
+// ── REFERENCE LOOKUPS ──────────────────────────────────
+var MC_REF = ["Decor","Living Room","Bedroom","Lighting","Dining","Kitchen","Outdoor Furniture"];
+var CAT_REF = ["Wall Decor","Bed","Decorative Lights","Tables","Chairs","Floor Décor","Luxe","Sofa","Dining","Decor","Outdoor Seating","Sofa cum Bed","Bed Accessories","Outdoor Dining","Outdoor Table","Dining Accessories","Outdoor Décor"];
+var BRAND_REF = ["Craftico","Febonic","Home By Shekhavati","Bonito Casa","Induscraft","Aadeshwar","Oorjaa","Flair Glass World","Philips","Venjara","Duraster","Emporio","Claymint","Furnishka","Outer Space Studio","The Mandir Store","Bonito Upholstered Bed","Ashnam Decor","Soisu","Bonito Studio","HomeTown","Bespoke"];
+var MAT_REF = ["Cotton Canvas","Upholstery","Solid Wood","Marble","Synthetic Fibers","LED","Paper","Mirror","Metal","Cement","Glass","Poly Resin","Engineered Wood","Cotton","Woven Rope","Aluminium","Rattan","Natural Fibers","Jute","Crystal","Leatherette","Steel","Brass","Mango Wood","Synthetic","Red Stone","Cork","Chrome","WPC","Resin","Polycarbonate"];
+var STOR_REF = ["Non-Storage","Storage","NA"];
+var THEMES = {
+  "Italian Mid Century": {skus:761, color:"#2a7a6e"},
+  "Abstract Lux":        {skus:719, color:"#b8902a"},
+  "Art Deco":            {skus:713, color:"#c45c2e"},
+  "Japandi":             {skus:524, color:"#4aada0"},
+  "Abstract":            {skus:484, color:"#e8845a"},
+  "Neo Industrial":      {skus:418, color:"#7a5a8a"},
+  "Miscellaneous":       {skus:386, color:"#8a7a6a"},
+  "Traditional":         {skus:129, color:"#5a8a6a"}
+};
+var PAL = ["#c45c2e","#2a7a6e","#b8902a","#e8845a","#4aada0","#d4a843","#7a5a8a","#5a8a6a","#8a7a6a","#4a5a8a"];
+var TT = {backgroundColor:"#fff",titleColor:"#1c1a18",bodyColor:"#7a766e",borderColor:"#d8d0c0",borderWidth:1,padding:10,cornerRadius:4};
+var PRICE_LABELS = ["0-10K","10K-20K","20K-30K","30K-50K","50K+"];
+var PRICE_BINS   = [0,10000,20000,30000,50000,Infinity];
+
+// ── STATE ──────────────────────────────────────────────
+var loc="both", fMC=null, fCat=null, fSubcat=null, fSt=null, fBrand=null, fStor=null, fMat=null, fPrice=null;
+var fThemes=new Set(), srch="", sCol=2, sAsc=true, pg=1;
+var PS=50;
+
+// ── HELPERS ────────────────────────────────────────────
+function getSP(r){ return loc==="blr"?r[8]:loc==="mum"?r[9]:Math.round((r[8]+r[9])/2); }
+function spLbl(){ return loc==="blr"?"Bengaluru SP":loc==="mum"?"Mumbai SP":"BLR + MUM avg"; }
+function fmtP(v){ return v>=100000?"\u20B9"+(v/100000).toFixed(1)+"L":v>=1000?"\u20B9"+(v/1000).toFixed(1)+"K":"\u20B9"+v; }
+function fmtK(v){ return v>=1000?Math.round(v/1000)+"K":v; }
+
+
+// ── STATUS STRIP ───────────────────────────────────────────────────────
+function statusClick(val){
+  setFilter("St", val);
+}
+function updateStatusStrip(d){
+  var total = d.length;
+  var activeCount = d.filter(function(r){return r[10]==="active";}).length;
+  var draftCount  = d.filter(function(r){return r[10]==="draft";}).length;
+  document.getElementById("statusActiveVal").textContent = activeCount.toLocaleString();
+  document.getElementById("statusDraftVal").textContent  = draftCount.toLocaleString();
+  document.getElementById("statusActivePct").textContent = total ? ((activeCount/total)*100).toFixed(1)+"%" : "0%";
+  document.getElementById("statusDraftPct").textContent  = total ? ((draftCount/total)*100).toFixed(1)+"%" : "0%";
+  // Highlight selected
+  document.getElementById("statusCardActive").classList.toggle("on", fSt==="active");
+  document.getElementById("statusCardDraft").classList.toggle("on",  fSt==="draft");
+}
+// ── LOCATION ───────────────────────────────────────────
+function setLoc(m, btn){
+  loc = m;
+  document.querySelectorAll(".loc-btn").forEach(function(b){ b.classList.remove("on"); });
+  if(btn) btn.classList.add("on");
+  document.getElementById("prLbl").textContent = spLbl();
+  var L = {both:"Both",blr:"Bengaluru",mum:"Mumbai"};
+  document.getElementById("mLocBtn").textContent = "\uD83D\uDCCD "+L[m];
+  document.getElementById("mLocBtn").classList.toggle("on", m!=="both");
+  setTimeout(refresh, 0);
+}
+
+// ── FILTER ─────────────────────────────────────────────
+function filt(){
+  return R.filter(function(r){
+    if(fMC     && r[3]!==fMC) return false;
+    if(fCat    && r[4]!==fCat) return false;
+    if(fSubcat && r[5]!==fSubcat) return false;
+    if(fSt     && r[10]!==fSt) return false;
+    if(fBrand  && r[2]!==fBrand) return false;
+    if(fStor){
+      if(fStor==="NA"){ if(r[11] && r[11]!=="") return false; }
+      else { if(r[11]!==fStor) return false; }
+    }
+    if(fMat && r[6]!==fMat) return false;
+    if(fPrice!==null){
+      var s=getSP(r);
+      if(s<PRICE_BINS[fPrice]||s>=PRICE_BINS[fPrice+1]) return false;
+    }
+    if(fThemes.size>0){
+      var th=r[13]||[];
+      var found=false;
+      for(var i=0;i<th.length;i++){ if(fThemes.has(th[i])){ found=true; break; } }
+      if(!found) return false;
+    }
+    if(srch){
+      var q=srch.toLowerCase();
+      var fields=[r[1],r[2],r[3],r[4],r[5],(r[13]||[]).join(" ")];
+      var hit=false;
+      for(var i=0;i<fields.length;i++){ if((fields[i]||"").toLowerCase().indexOf(q)>=0){hit=true;break;} }
+      if(!hit) return false;
+    }
+    return true;
+  });
+}
+
+// ── FILTER SETTER (used by sidebar & chart clicks) ─────
+function setFilter(type, val){
+  if(type==="MC")     { fMC     = (fMC===val)     ? null : val; fCat=null; fSubcat=null; }
+  if(type==="Cat")    { fCat    = (fCat===val)     ? null : val; fMC=null; fSubcat=null; }
+  if(type==="Subcat") { fSubcat = (fSubcat===val)  ? null : val; }
+  if(type==="St")     { fSt     = (fSt===val)      ? null : val; }
+  if(type==="Stor")   { fStor   = (fStor===val)    ? null : val; }
+  if(type==="Mat")    { fMat    = (fMat===val)     ? null : val; }
+  if(type==="Price")  { fPrice  = (fPrice===val)   ? null : val; }
+  if(type==="Brand")  { fBrand  = (fBrand===val)   ? null : val; }
+  pg=1;
+  setTimeout(refresh, 0);
+}
+
+// ── ACTIVE FILTER PILLS ────────────────────────────────
+function renderPills(){
+  var pills = [];
+  if(fMC)      pills.push({l:"Main: "+fMC,      t:"MC",     v:fMC});
+  if(fCat)     pills.push({l:"Cat: "+fCat,       t:"Cat",    v:fCat});
+  if(fSubcat)  pills.push({l:"Sub: "+fSubcat,    t:"Subcat", v:fSubcat});
+  if(fBrand)   pills.push({l:"Brand: "+fBrand,   t:"Brand",  v:fBrand});
+  if(fStor)    pills.push({l:"Storage: "+fStor,  t:"Stor",   v:fStor});
+  if(fMat)     pills.push({l:"Mat: "+fMat,       t:"Mat",    v:fMat});
+  if(fPrice!==null) pills.push({l:"Price: "+PRICE_LABELS[fPrice], t:"Price", v:fPrice});
+  if(fSt)      pills.push({l:"Status: "+fSt,     t:"St",     v:fSt});
+  fThemes.forEach(function(t){ pills.push({l:"Theme: "+t, t:"Theme", v:t}); });
+
+  window.__pills = pills;
+  var html = pills.map(function(p,i){
+    return '<div class="af-pill">'+p.l+'<span class="af-x" onclick="clearPill('+i+')">&#x2715;</span></div>';
+  }).join("");
+  document.getElementById("activeFilters").innerHTML = html;
+}
+function clearPill(i){
+  var p = window.__pills[i];
+  if(p.t==="Theme") fThemes.delete(p.v);
+  else setFilter(p.t, p.v); // toggle off = null since current == val
+  // setFilter already calls refresh, but for themes we need manual call
+  if(p.t==="Theme"){ pg=1; setTimeout(refresh, 0); }
+}
+
+// ── KPIs ───────────────────────────────────────────────
+function kpis(d){
+  var n=d.length;
+  var uP=new Set(d.map(function(r){return r[0];})).size;
+  var uB=new Set(d.map(function(r){return r[2];})).size;
+  var uC=new Set(d.map(function(r){return r[4];})).size;
+  var uS=new Set(d.map(function(r){return r[5];})).size;
+  var avgSP = n ? Math.round(d.reduce(function(a,r){return a+getSP(r);},0)/n) : 0;
+  document.getElementById("kv0").textContent = n>=1000?(n/1000).toFixed(2)+"K":n;
+  document.getElementById("kv1").textContent = uP;
+  document.getElementById("kv2").textContent = uB;
+  document.getElementById("kv3").textContent = uC;
+  document.getElementById("kv4").textContent = uS;
+  document.getElementById("kv5").textContent = fmtP(avgSP);
+  document.getElementById("navSkus").textContent = n>=1000?(n/1000).toFixed(2)+"K":n;
+  document.getElementById("navProds").textContent = uP;
+}
+
+// ── THEMES ─────────────────────────────────────────────
+function buildThemes(){
+  // Count without theme filter so all chips always show
+  var base = R.filter(function(r){
+    if(fMC     && r[3]!==fMC) return false;
+    if(fCat    && r[4]!==fCat) return false;
+    if(fSubcat && r[5]!==fSubcat) return false;
+    if(fSt     && r[10]!==fSt) return false;
+    if(fBrand  && r[2]!==fBrand) return false;
+    if(fStor){ if(fStor==="NA"){if(r[11]&&r[11]!=="")return false;}else{if(r[11]!==fStor)return false;} }
+    if(fMat && r[6]!==fMat) return false;
+    if(fPrice!==null){var s=getSP(r);if(s<PRICE_BINS[fPrice]||s>=PRICE_BINS[fPrice+1])return false;}
+    if(srch){var q=srch.toLowerCase();var f=[r[1],r[2],r[3],r[4],r[5]];var h=false;for(var i=0;i<f.length;i++){if((f[i]||"").toLowerCase().indexOf(q)>=0){h=true;break;}}if(!h)return false;}
+    return true;
+  });
+  var cnt = {};
+  base.forEach(function(r){ (r[13]||[]).forEach(function(t){ cnt[t]=(cnt[t]||0)+1; }); });
+
+  var html = Object.keys(THEMES).map(function(nm){
+    var m = THEMES[nm];
+    var on = fThemes.has(nm);
+    var bg = on ? 'style="background:'+m.color+'"' : '';
+    return '<div class="tc'+(on?" on":"")+'" '+bg+' onclick="tglTheme(\''+nm+'\')">'
+      +'<div class="tc-dot" style="background:'+m.color+(on?';background:rgba(255,255,255,.6)':'')+'"></div>'
+      +'<span class="tc-nm">'+nm+'</span>'
+      +'<span class="tc-ct">'+(cnt[nm]||0).toLocaleString()+'</span>'
+      +'</div>';
+  }).join("");
+  document.getElementById("tsChips").innerHTML = html;
+  document.getElementById("tsActive").textContent = fThemes.size===0 ? "All active" : fThemes.size+" selected";
+}
+function tglTheme(nm){
+  if(fThemes.has(nm)) fThemes.delete(nm); else fThemes.add(nm);
+  pg=1; setTimeout(refresh, 0);
+}
+
+// ── SIDEBAR ────────────────────────────────────────────
+function sidebar(){
+  var d = filt();
+  var cMC={}, cCat={}, cSt={}, cStor={}, cMat={};
+  d.forEach(function(r){
+    cMC[r[3]]  = (cMC[r[3]]||0)+1;
+    cCat[r[4]] = (cCat[r[4]]||0)+1;
+    cSt[r[10]] = (cSt[r[10]]||0)+1;
+    var sk = r[11]||"NA"; cStor[sk] = (cStor[sk]||0)+1;
+    cMat[r[6]] = (cMat[r[6]]||0)+1;
+  });
+
+  // Main Category — use data-val attribute, NO inline quotes with values
+  document.getElementById("sbMC").innerHTML = MC_REF.map(function(k){
+    var on = fMC===k ? " on" : "";
+    return '<div class="sb-it'+on+'" data-type="MC" data-val="'+encodeURIComponent(k)+'" onclick="sbClick(this)">'
+      +'<div class="sb-dot"></div><span style="flex:1">'+k+'</span>'
+      +'<span class="sb-n">'+(cMC[k]||0).toLocaleString()+'</span></div>';
+  }).join("");
+
+  document.getElementById("sbCat").innerHTML = CAT_REF.map(function(k){
+    var on = fCat===k ? " on" : "";
+    return '<div class="sb-it'+on+'" data-type="Cat" data-val="'+encodeURIComponent(k)+'" onclick="sbClick(this)">'
+      +'<div class="sb-dot"></div><span style="flex:1">'+k+'</span>'
+      +'<span class="sb-n">'+(cCat[k]||0).toLocaleString()+'</span></div>';
+  }).join("");
+
+  document.getElementById("sbStor").innerHTML = STOR_REF.map(function(k){
+    var on = fStor===k ? " on" : "";
+    var colors = {"Storage":"var(--teal2)","Non-Storage":"var(--rust2)","NA":"var(--ink3)"};
+    return '<div class="sb-it'+on+'" data-type="Stor" data-val="'+encodeURIComponent(k)+'" onclick="sbClick(this)">'
+      +'<div class="sb-dot" style="background:'+colors[k]+'"></div>'
+      +'<span style="flex:1">'+k+'</span>'
+      +'<span class="sb-n">'+(cStor[k]||0)+'</span></div>';
+  }).join("");
+
+  document.getElementById("sbMat").innerHTML = MAT_REF.map(function(k){
+    var on = fMat===k ? " on" : "";
+    return '<div class="mat-chip'+on+'" data-type="Mat" data-val="'+encodeURIComponent(k)+'" onclick="sbClick(this)">'
+      +k+'<span class="mat-chip-n">'+(cMat[k]||0)+'</span></div>';
+  }).join("");
+}
+
+// Single safe click handler for all sidebar items — reads data attributes
+function sbClick(el){
+  var type = el.getAttribute("data-type");
+  var val  = decodeURIComponent(el.getAttribute("data-val"));
+  setFilter(type, val);
+}
+
+// ── BRANDS ─────────────────────────────────────────────
+function brands(d){
+  var cur = {};
+  d.forEach(function(r){ cur[r[2]]=(cur[r[2]]||0)+1; });
+  document.getElementById("bw").innerHTML = BRAND_REF.map(function(nm){
+    var on = fBrand===nm ? " on" : "";
+    return '<div class="bc'+on+'" data-val="'+encodeURIComponent(nm)+'" onclick="brandClick(this)">'
+      +'<span class="bc-n">'+(cur[nm]||0)+'</span>'
+      +'<span class="bc-nm">'+nm+'</span></div>';
+  }).join("");
+  document.getElementById("brandNote").textContent = fBrand ? "Filtered: "+fBrand : "Tap to filter";
+  document.getElementById("mBrandBtn").textContent = "\uD83C\uDFEA "+(fBrand?fBrand.split(" ")[0]:"Brand");
+  document.getElementById("mBrandBtn").classList.toggle("on", !!fBrand);
+}
+function brandClick(el){
+  var nm = decodeURIComponent(el.getAttribute("data-val"));
+  setFilter("Brand", nm);
+}
+
+// ── CHARTS ─────────────────────────────────────────────
+var CH = {};
+function dk(id){ if(CH[id]){ CH[id].destroy(); delete CH[id]; } }
+var SA = {responsive:true, maintainAspectRatio:false};
+var XA = {ticks:{color:"#7a766e",font:{size:10}}, grid:{display:false}, border:{display:false}};
+var YA = {ticks:{color:"#7a766e",font:{size:10}, callback:function(v){return fmtK(v);}}, grid:{color:"#f0ece4"}, border:{display:false}};
+
+function chMC(d){
+  dk("mc");
+  var cnt = {};
+  d.forEach(function(r){ cnt[r[3]]=(cnt[r[3]]||0)+1; });
+  var bgColors = MC_REF.map(function(k,i){
+    return fMC===k ? "#fff200" : PAL[i]+"cc";
+  });
+  CH.mc = new Chart(document.getElementById("cMC"), {
+    type:"bar",
+    data:{
+      labels: MC_REF,
+      datasets:[{
+        data: MC_REF.map(function(k){ return cnt[k]||0; }),
+        backgroundColor: bgColors,
+        borderRadius: 4,
+        borderSkipped: false
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      onClick: function(evt, els){
+        if(els && els.length>0){
+          var idx = els[0].index;
+          setFilter("MC", MC_REF[idx]);
+        }
+      },
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:"#fff",titleColor:"#1c1a18",bodyColor:"#7a766e",
+          borderColor:"#d8d0c0",borderWidth:1,padding:10,cornerRadius:4,
+          callbacks:{label:function(c){return " "+c.raw.toLocaleString()+" SKUs";}}
+        }
+      },
+      scales:{
+        x:{ticks:{color:"#7a766e",font:{size:10},maxRotation:25}, grid:{display:false}, border:{display:false}},
+        y:{ticks:{color:"#7a766e",font:{size:10},callback:function(v){return fmtK(v);}}, grid:{color:"#f0ece4"}, border:{display:false}}
+      }
+    }
+  });
+}
+
+function chSC(d){
+  dk("sc");
+  var skuC={}, uniqC={};
+  d.forEach(function(r){
+    skuC[r[5]]=(skuC[r[5]]||0)+1;
+    if(!uniqC[r[5]]) uniqC[r[5]]=new Set();
+    uniqC[r[5]].add(r[0]);
+  });
+  var top = Object.entries(skuC).sort(function(a,b){return b[1]-a[1];}).slice(0,10);
+  var labels = top.map(function(e){return e[0];});
+
+  CH.sc = new Chart(document.getElementById("cSC"), {
+    type:"bar",
+    data:{
+      labels: labels,
+      datasets:[
+        {label:"SKUs",   data:top.map(function(e){return e[1];}),
+         backgroundColor:labels.map(function(k){return fSubcat===k?"#c45c2e":"#c45c2eaa";}),
+         borderRadius:3},
+        {label:"Unique", data:top.map(function(e){return uniqC[e[0]]?uniqC[e[0]].size:0;}),
+         backgroundColor:labels.map(function(k){return fSubcat===k?"#2a7a6e":"#2a7a6eaa";}),
+         borderRadius:3}
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      indexAxis:"y",
+      onClick: function(evt, els){
+        if(els && els.length>0){
+          var idx = els[0].index;
+          setFilter("Subcat", labels[idx]);
+        }
+      },
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:"#fff",titleColor:"#1c1a18",bodyColor:"#7a766e",
+          borderColor:"#d8d0c0",borderWidth:1,padding:10,cornerRadius:4
+        }
+      },
+      scales:{
+        x:{ticks:{color:"#7a766e",font:{size:10},callback:function(v){return fmtK(v);}}, grid:{color:"#f0ece4"}, border:{display:false}},
+        y:{ticks:{color:"#555",font:{size:10}}, grid:{display:false}, border:{display:false}}
+      }
+    }
+  });
+}
+
+function chPR(d){
+  dk("pr");
+  var v = new Array(5).fill(0);
+  d.forEach(function(r){
+    var s=getSP(r);
+    for(var i=0;i<5;i++){ if(s>=PRICE_BINS[i]&&s<PRICE_BINS[i+1]){v[i]++;break;} }
+  });
+  CH.pr = new Chart(document.getElementById("cPR"), {
+    type:"bar",
+    data:{
+      labels: PRICE_LABELS,
+      datasets:[{
+        data: v,
+        backgroundColor: PRICE_LABELS.map(function(l,i){return fPrice===i?"#fff200":PAL[i]+"cc";}),
+        borderRadius:4, borderSkipped:false
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      onClick: function(evt, els){
+        if(els && els.length>0){ setFilter("Price", els[0].index); }
+      },
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:"#fff",titleColor:"#1c1a18",bodyColor:"#7a766e",
+          borderColor:"#d8d0c0",borderWidth:1,padding:10,cornerRadius:4,
+          callbacks:{label:function(c){return " "+c.raw.toLocaleString()+" SKUs";}}
+        }
+      },
+      scales:{
+        x:{ticks:{color:"#7a766e",font:{size:10}}, grid:{display:false}, border:{display:false}},
+        y:{ticks:{color:"#7a766e",font:{size:10},callback:function(v){return fmtK(v);}}, grid:{color:"#f0ece4"}, border:{display:false}}
+      }
+    }
+  });
+}
+
+function chMT(d){
+  dk("mt");
+  var cnt={};
+  d.forEach(function(r){ cnt[r[6]]=(cnt[r[6]]||0)+1; });
+  var top = Object.entries(cnt).sort(function(a,b){return b[1]-a[1];}).slice(0,8);
+  var tot = top.reduce(function(a,b){return a+b[1];},0);
+  CH.mt = new Chart(document.getElementById("cMT"), {
+    type:"doughnut",
+    data:{
+      labels: top.map(function(e){return e[0];}),
+      datasets:[{data:top.map(function(e){return e[1];}), backgroundColor:PAL, borderWidth:2, borderColor:"#fff", hoverOffset:4}]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:"60%",
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:"#fff",titleColor:"#1c1a18",bodyColor:"#7a766e",
+          borderColor:"#d8d0c0",borderWidth:1,padding:10,cornerRadius:4,
+          callbacks:{label:function(c){return " "+c.label+": "+c.raw.toLocaleString();}}
+        }
+      }
+    }
+  });
+  document.getElementById("matLeg").innerHTML = top.map(function(e,i){
+    return '<div class="mr-row"><div class="md" style="background:'+PAL[i]+'"></div>'
+      +'<div class="ml-lb">'+e[0]+'</div>'
+      +'<div class="ml-pc">'+(tot?((e[1]/tot)*100).toFixed(0)+"%":"0%")+'</div></div>';
+  }).join("");
+}
+
+// ── TABLE ───────────────────────────────────────────────
+function tbl(d){
+  var sorted = d.slice().sort(function(a,b){
+    var av=a[sCol], bv=b[sCol];
+    if(typeof av==="number") return sAsc?av-bv:bv-av;
+    return sAsc?(av||"").localeCompare(bv||""):(bv||"").localeCompare(av||"");
+  });
+  var tot=sorted.length, pgs=Math.max(1,Math.ceil(tot/PS));
+  if(pg>pgs) pg=1;
+  var sl = sorted.slice((pg-1)*PS, pg*PS);
+  document.getElementById("tbody").innerHTML = sl.map(function(r){
+    var sp_blr = r[8]?"\u20B9"+r[8].toLocaleString():"\u2014";
+    var sp_mum = r[9]?"\u20B9"+r[9].toLocaleString():"\u2014";
+    var mrp    = r[7]?"\u20B9"+r[7].toLocaleString():"\u2014";
+    var sto    = r[11]||"\u2014";
+    var themes = (r[13]||[]).join(", ");
+    var title  = (r[1]||"").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+    return "<tr>"
+      +"<td class='td-title' title='"+title+"'>"+title+"</td>"
+      +"<td>"+r[2]+"</td><td>"+r[3]+"</td><td>"+r[4]+"</td><td>"+r[5]+"</td><td>"+r[6]+"</td>"
+      +"<td>"+sto+"</td>"
+      +"<td class='pv'>"+sp_blr+"</td>"
+      +"<td class='pv'>"+sp_mum+"</td>"
+      +"<td class='pv' style='opacity:.5;text-decoration:line-through'>"+mrp+"</td>"
+      +"<td><span class='"+(r[10]==="active"?"pa":"pd")+"'>"+r[10]+"</span></td>"
+      +"<td style='font-size:10px;color:#7a766e;max-width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"+themes+"</td>"
+      +"</tr>";
+  }).join("");
+  document.getElementById("tblTi").textContent = tot.toLocaleString()+" records";
+  document.getElementById("tblFt").textContent = (((pg-1)*PS+1).toLocaleString())+"\u2013"+(Math.min(pg*PS,tot).toLocaleString())+" of "+tot.toLocaleString();
+  buildPg(pgs);
+}
+function buildPg(pgs){
+  var s=Math.max(1,pg-2), e=Math.min(pgs,pg+2);
+  var h = '<div class="pb'+(pg<=1?" off":"")+'" onclick="goPg('+(pg-1)+')">&#x2039;</div>';
+  if(s>1){ h+='<div class="pb" onclick="goPg(1)">1</div>'; if(s>2) h+='<div class="pb off">&hellip;</div>'; }
+  for(var p=s;p<=e;p++) h+='<div class="pb'+(p===pg?" on":"")+'" onclick="goPg('+p+')">'+p+'</div>';
+  if(e<pgs){ if(e<pgs-1) h+='<div class="pb off">&hellip;</div>'; h+='<div class="pb" onclick="goPg('+pgs+')">'+pgs+'</div>'; }
+  h+='<div class="pb'+(pg>=pgs?" off":"")+'" onclick="goPg('+(pg+1)+')">&#x203a;</div>';
+  document.getElementById("pgRow").innerHTML = h;
+}
+function goPg(p){ pg=p; tbl(filt()); }
+function srt(c){
+  if(sCol===c) sAsc=!sAsc; else{sCol=c; sAsc=true;}
+  [1,2,3,4,5,6,7,8,9,10,11].forEach(function(i){
+    var el=document.getElementById("s"+i);
+    if(el) el.textContent = i===c?(sAsc?"\u25B2":"\u25BC"):"\u2195";
+  });
+  pg=1; tbl(filt());
+}
+function onSearch(v){ srch=v; pg=1; setTimeout(refresh, 0); }
+
+// ── MOBILE DRAWER ──────────────────────────────────────
+function openDrawer(type){
+  var d = filt();
+  var cMC={},cCat={},cSt={},cStor={},cBr={},cMat={};
+  d.forEach(function(r){
+    cMC[r[3]]=(cMC[r[3]]||0)+1; cCat[r[4]]=(cCat[r[4]]||0)+1;
+    cSt[r[10]]=(cSt[r[10]]||0)+1;
+    var sk=r[11]||"NA"; cStor[sk]=(cStor[sk]||0)+1;
+    cBr[r[2]]=(cBr[r[2]]||0)+1; cMat[r[6]]=(cMat[r[6]]||0)+1;
+  });
+  var titles={loc:"Location",cat:"Category & Filters",brand:"Brand"};
+  document.getElementById("drwTitle").textContent = titles[type]||"Filters";
+
+  function dc(k,type,cur,count){
+    var on=cur===k?" on":"";
+    return '<div class="dc'+on+'" data-type="'+type+'" data-val="'+encodeURIComponent(k)+'" onclick="drwClick(this)">'
+      +'<div class="dc-dot"></div>'+k+'<span class="dc-n">'+(count||0)+'</span></div>';
+  }
+
+  var body="";
+  if(type==="loc"){
+    body='<div class="drw-sec"><div class="drw-sec-ttl">Location</div><div class="drw-chips">'
+      +[["both","Both"],["blr","Bengaluru"],["mum","Mumbai"]].map(function(arr){
+        var on=loc===arr[0]?" on":"";
+        return '<div class="dc'+on+'" data-loc="'+arr[0]+'" onclick="setLocMob(this)"><div class="dc-dot"></div>'+arr[1]+'</div>';
+      }).join("")
+      +'</div></div>';
+  } else if(type==="cat"){
+    body += '<div class="drw-sec"><div class="drw-sec-ttl">Main Category</div><div class="drw-chips">'
+      + MC_REF.map(function(k){return dc(k,"MC",fMC,cMC[k]);}).join("")
+      +'</div></div>';
+    body += '<div class="drw-sec"><div class="drw-sec-ttl">Category</div><div class="drw-chips">'
+      + CAT_REF.map(function(k){return dc(k,"Cat",fCat,cCat[k]);}).join("")
+      +'</div></div>';
+    body += '<div class="drw-sec"><div class="drw-sec-ttl">Storage Type</div><div class="drw-chips">'
+      + STOR_REF.map(function(k){return dc(k,"Stor",fStor,cStor[k]);}).join("")
+      +'</div></div>';
+    body += '<div class="drw-sec"><div class="drw-sec-ttl">Material</div><div class="drw-chips">'
+      + MAT_REF.filter(function(k){return cMat[k];}).map(function(k){return dc(k,"Mat",fMat,cMat[k]);}).join("")
+      +'</div></div>';
+    body += '<div class="drw-sec"><div class="drw-sec-ttl">Status</div><div class="drw-chips">'
+      + [["active","Active"],["draft","Draft"]].map(function(arr){return dc(arr[0],"St",fSt,cSt[arr[0]]);}).join("")
+      +'</div></div>';
+  } else if(type==="brand"){
+    body='<div class="drw-sec"><div class="drw-sec-ttl">Brand</div><div class="drw-chips">'
+      + BRAND_REF.map(function(nm){return dc(nm,"Brand",fBrand,cBr[nm]);}).join("")
+      +'</div></div>';
+  }
+  document.getElementById("drwBody").innerHTML = body;
+  document.getElementById("drawer").style.display="block";
+  setTimeout(function(){document.getElementById("drawer").classList.add("open");},10);
+  document.getElementById("overlay").classList.add("show");
+}
+function drwClick(el){
+  var type = el.getAttribute("data-type");
+  var val  = decodeURIComponent(el.getAttribute("data-val"));
+  setFilter(type, val);
+  // Re-render drawer to reflect updated state
+  var title = document.getElementById("drwTitle").textContent;
+  var map = {"Location":"loc","Category & Filters":"cat","Brand":"brand"};
+  if(map[title]) openDrawer(map[title]);
+}
+function setLocMob(el){
+  var m = el.getAttribute("data-loc");
+  loc=m;
+  document.querySelectorAll(".loc-btn").forEach(function(b,i){
+    b.classList.toggle("on",["both","blr","mum"][i]===m);
+  });
+  document.getElementById("prLbl").textContent = spLbl();
+  var L={both:"Both",blr:"Bengaluru",mum:"Mumbai"};
+  document.getElementById("mLocBtn").textContent = "\uD83D\uDCCD "+L[m];
+  document.getElementById("mLocBtn").classList.toggle("on",m!=="both");
+  setTimeout(refresh, 0);
+  openDrawer("loc");
+}
+function closeDrawer(){
+  document.getElementById("drawer").classList.remove("open");
+  setTimeout(function(){ var d=document.getElementById("drawer"); if(d) d.style.display="none"; },300);
+  document.getElementById("overlay").classList.remove("show");
+}
+
+// ── MASTER REFRESH ─────────────────────────────────────
+function refresh(){
+  var d = filt();
+  renderPills();
+  updateStatusStrip(d);
+  kpis(d);
+  buildThemes();
+  sidebar();
+  brands(d);
+  chMC(d);
+  chSC(d);
+  chPR(d);
+  chMT(d);
+  tbl(d);
+}
+
+function resetAll(){
+  fMC=null; fCat=null; fSubcat=null; fSt=null; fBrand=null;
+  fStor=null; fMat=null; fPrice=null; fThemes=new Set();
+  srch=""; sCol=2; sAsc=true; pg=1; loc="both";
+  document.querySelectorAll(".loc-btn").forEach(function(b,i){ b.classList.toggle("on",i===0); });
+  document.getElementById("srchIn").value="";
+  document.getElementById("mLocBtn").textContent="\uD83D\uDCCD Both";
+  document.getElementById("mCatBtn").textContent="\uD83D\uDCC2 Category";
+  document.getElementById("mBrandBtn").textContent="\uD83C\uDFEA Brand";
+  ["mLocBtn","mCatBtn","mBrandBtn"].forEach(function(id){ document.getElementById(id).classList.remove("on"); });
+  [1,2,3,4,5,6,7,8,9,10,11].forEach(function(i){
+    var el=document.getElementById("s"+i); if(el) el.textContent=i===2?"\u25B2":"\u2195";
+  });
+  closeDrawer();
+  refresh();
+}
+
+// ── INIT ───────────────────────────────────────────────
+refresh();
+</script>
+</body>
+</html>
